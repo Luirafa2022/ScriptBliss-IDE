@@ -76,7 +76,7 @@ class MainWindow(QMainWindow):
         self.editor.setCaretForegroundColor(QColor("#00091a"))
         # Define a largura da tabulação para 4 espaços
         self.editor.setTabWidth(4) 
-        # Conecta o evento de tecla pressionada do editor
+        # Conecta o evento de tecla pressionada do editorasdasd
         self.editor.keyPressEvent = self.editorKeyPressEvent
 
         font = QFont()
