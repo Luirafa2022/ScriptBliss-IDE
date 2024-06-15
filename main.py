@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
     def initUI(self):
         self.setWindowTitle("ScriptBliss")
         self.setWindowIcon(QIcon('logo.png'))
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1200, 800)          
         self.showMaximized()
 
         dark_palette = QPalette()
@@ -69,6 +69,9 @@ class MainWindow(QMainWindow):
         self.setPalette(dark_palette)
 
         self.editor = QsciScintilla()
+        self.imageViewer = QLabel()
+        self.imageViewer.setAlignment(Qt.AlignCenter)
+        self.imageViewer.setStyleSheet("background-color: #1e1e3e;")
         self.editor.setUtf8(True)  # Ensure the editor is in UTF-8 mode
         self.editor.setCaretForegroundColor(QColor("#00091a"))
         # Define a largura da tabulação para 4 espaços
@@ -153,14 +156,14 @@ class MainWindow(QMainWindow):
             }
         """)
 
-        splitter1 = QSplitter(Qt.Horizontal)
-        splitter1.addWidget(self.treeView)
-        splitter1.addWidget(self.editor)
-        splitter1.setSizes([200, 1000])
-        splitter1.setHandleWidth(0)
+        self.splitter1 = QSplitter(Qt.Horizontal)
+        self.splitter1.addWidget(self.treeView)
+        self.splitter1.addWidget(self.editor)
+        self.splitter1.setSizes([200, 1000])
+        self.splitter1.setHandleWidth(0)
 
         splitter2 = QSplitter(Qt.Vertical)
-        splitter2.addWidget(splitter1)
+        splitter2.addWidget(self.splitter1)
         splitter2.addWidget(self.bottomTabWidget)
         splitter2.setSizes([580, 200])
         splitter2.setHandleWidth(0)
@@ -356,13 +359,45 @@ class MainWindow(QMainWindow):
                 lexer.setDefaultFont(QFont("Consolas", 10))
                 self.editor.setLexer(lexer)
 
+            # Restore the original self.editor if needed
+            if self.splitter1.widget(1) != self.editor:
+                self.splitter1.replaceWidget(1, self.editor)
+
     def displayImage(self, fileName):
         pixmap = QPixmap(fileName)
-        imageWidget = QLabel()
-        imageWidget.setPixmap(pixmap)
-        imageWidget.setAlignment(Qt.AlignCenter)
-        imageWidget.setStyleSheet("background-color: #1e1e3e;")
-        self.setCentralWidget(imageWidget)
+        self.imageViewer.setPixmap(pixmap)
+        try:
+            pixmap = QPixmap(fileName)
+            imageLabel = QLabel()
+            imageLabel.setPixmap(pixmap)
+            imageLabel.setAlignment(Qt.AlignCenter)
+            imageLabel.setStyleSheet("background-color: #1e1e3e;")
+
+            # Create a new QWidget to hold the imageLabel
+            imageWidget = QWidget()
+            layout = QVBoxLayout(imageWidget)
+            layout.addWidget(imageLabel)
+            layout.setContentsMargins(0, 0, 0, 0)
+
+            # Create a new QsciScintilla object to display the image
+            imageEditor = QsciScintilla()
+            imageEditor.setReadOnly(True)
+            imageEditor.setText("")
+            imageEditor.setMarginWidth(0, 0)
+            imageEditor.setMarginWidth(1, 0)
+            imageEditor.setMarginWidth(2, 0)
+            imageEditor.setMinimumSize(pixmap.width(), pixmap.height())
+            imageEditor.viewport().setBackgroundRole(QPalette.Dark)
+            imageEditor.viewport().setAutoFillBackground(True)
+
+            # Replace self.editor with the imageEditor
+            self.splitter1.replaceWidget(1, self.imageViewer)
+            self.imageEditor = imageEditor
+            self.imageWidget = imageWidget
+            self.imageEditor.setViewport(self.imageWidget)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to display image: {str(e)}")
 
     def saveFileDialog(self):
         if self.currentFile:
