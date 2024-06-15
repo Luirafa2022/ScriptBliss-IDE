@@ -505,7 +505,11 @@ class MainWindow(QMainWindow):
     def onFileClicked(self, index):
         if not self.fileSystemModel.isDir(index):
             fileName = self.fileSystemModel.filePath(index)
-            self.loadFile(fileName)
+            if fileName.endswith(('.exe', '.zip')):
+                QMessageBox.information(self, "Formato Incompatível", "Este tipo de arquivo não pode ser visualizado na IDE.")
+            else:
+                self.loadFile(fileName)
+
 
     def terminalKeyPressEvent(self, event):
         if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
