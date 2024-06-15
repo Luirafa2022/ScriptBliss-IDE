@@ -13,19 +13,19 @@ class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.icon_map = {
-            '.cpp': QIcon('cpp.png'),
-            '.css': QIcon('css.png'),
-            '.java': QIcon('java.png'),
-            '.php': QIcon('php.png'),
-            '.html': QIcon('html.png'),
-            '.js': QIcon('javascript.png'),
-            '.png': QIcon('image.png'),
-            '.jpg': QIcon('image.png'),
-            '.jpeg': QIcon('image.png'),
-            '.bmp': QIcon('image.png'),
-            '.gif': QIcon('image.png'),
-            '.py': QIcon('python.png'),
-            '.rb': QIcon('ruby.png')
+            '.cpp': QIcon('img/cpp.png'),
+            '.css': QIcon('img/css.png'),
+            '.java': QIcon('img/java.png'),
+            '.php': QIcon('img/php.png'),
+            '.html': QIcon('img/html.png'),
+            '.js': QIcon('img/javascript.png'),
+            '.png': QIcon('img/image.png'),
+            '.jpg': QIcon('img/image.png'),
+            '.jpeg': QIcon('img/image.png'),
+            '.bmp': QIcon('img/image.png'),
+            '.gif': QIcon('img/image.png'),
+            '.py': QIcon('img/python.png'),
+            '.rb': QIcon('img/ruby.png')
         }
 
     def data(self, index, role):
@@ -48,7 +48,7 @@ class MainWindow(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle("ScriptBliss")
-        self.setWindowIcon(QIcon('logo.png'))
+        self.setWindowIcon(QIcon('img/logo.png'))
         self.setGeometry(100, 100, 1200, 800)          
         self.showMaximized()
 
@@ -225,40 +225,40 @@ class MainWindow(QMainWindow):
         gitMenu = menubar.addMenu('&Git')
         compilerMenu = menubar.addMenu('&Compilers')
 
-        newFile = QAction(QIcon('new.png'), 'New', self)
+        newFile = QAction(QIcon('img/new.png'), 'New', self)
         newFile.setShortcut('Ctrl+N')
         newFile.setStatusTip('Create new file')
         newFile.triggered.connect(self.newFile)
 
-        openFile = QAction(QIcon('open.png'), 'Open', self)
+        openFile = QAction(QIcon('img/open.png'), 'Open', self)
         openFile.setShortcut('Ctrl+O')
         openFile.setStatusTip('Open existing file')
         openFile.triggered.connect(self.openFileDialog)
 
-        openFolder = QAction(QIcon('folder.png'), 'Open Folder', self)
+        openFolder = QAction(QIcon('img/folder.png'), 'Open Folder', self)
         openFolder.setShortcut('Ctrl+Shift+O')
         openFolder.setStatusTip('Open folder as project')
         openFolder.triggered.connect(self.openFolderDialog)
 
-        saveFile = QAction(QIcon('save.png'), 'Save', self)
+        saveFile = QAction(QIcon('img/save.png'), 'Save', self)
         saveFile.setShortcut('Ctrl+S')
         saveFile.setStatusTip('Save current file')
         saveFile.triggered.connect(self.saveFileDialog)
 
-        runAction = QAction(QIcon('run.png'), 'Run Code', self)
+        runAction = QAction(QIcon('img/run.png'), 'Run Code', self)
         runAction.setShortcut('Ctrl+R')
         runAction.setStatusTip('Run Code')
         runAction.triggered.connect(self.runCode)
 
-        gitCommit = QAction(QIcon('commit.png'), 'Commit', self)
+        gitCommit = QAction(QIcon('img/commit.png'), 'Commit', self)
         gitCommit.setStatusTip('Commit changes')
         gitCommit.triggered.connect(self.gitCommit)
 
-        gitPush = QAction(QIcon('push.png'), 'Push', self)
+        gitPush = QAction(QIcon('img/push.png'), 'Push', self)
         gitPush.setStatusTip('Push changes')
         gitPush.triggered.connect(self.gitPush)
 
-        gitPull = QAction(QIcon('pull.png'), 'Pull', self)
+        gitPull = QAction(QIcon('img/pull.png'), 'Pull', self)
         gitPull.setStatusTip('Pull changes')
         gitPull.triggered.connect(self.gitPull)
 
@@ -272,27 +272,27 @@ class MainWindow(QMainWindow):
         gitMenu.addAction(gitPull)
 
         # Compilers Menu
-        pythonCompiler = QAction(QIcon('python.png'),'Python', self)
+        pythonCompiler = QAction(QIcon('img/python.png'),'Python', self)
         pythonCompiler.setStatusTip('Download Python Compiler')
         pythonCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.python.org/downloads/')))
 
-        javaCompiler = QAction(QIcon('java.png'),'Java', self)
+        javaCompiler = QAction(QIcon('img/java.png'),'Java', self)
         javaCompiler.setStatusTip('Download Java Compiler')
         javaCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.oracle.com/java/technologies/javase-jdk11-downloads.html')))
 
-        cppCompiler = QAction(QIcon('cpp.png'),'C++', self)
+        cppCompiler = QAction(QIcon('img/cpp.png'),'C++', self)
         cppCompiler.setStatusTip('Download C++ Compiler')
         cppCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.mingw-w64.org/downloads/')))
 
-        rubyCompiler = QAction(QIcon('ruby.png'),'Ruby', self)
+        rubyCompiler = QAction(QIcon('img/ruby.png'),'Ruby', self)
         rubyCompiler.setStatusTip('Download Ruby Compiler')
         rubyCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.ruby-lang.org/en/downloads/')))
 
-        phpCompiler = QAction(QIcon('php.png'),'PHP', self)
+        phpCompiler = QAction(QIcon('img/php.png'),'PHP', self)
         phpCompiler.setStatusTip('Download PHP Compiler')
         phpCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.php.net/downloads')))
 
-        jsCompiler = QAction(QIcon('javascript.png'),'JavaScript', self)
+        jsCompiler = QAction(QIcon('img/javascript.png'),'JavaScript', self)
         jsCompiler.setStatusTip('Download JavaScript Compiler')
         jsCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://nodejs.org/en/download/package-manager')))
 
@@ -563,9 +563,9 @@ class MainWindow(QMainWindow):
         index = self.treeView.indexAt(point)
         if index.isValid():
             contextMenu = QMenu(self)
-            deleteAction = QAction(QIcon('delete.png'), 'Delete', self)
+            deleteAction = QAction(QIcon('img/delete.png'), 'Delete', self)
             deleteAction.triggered.connect(lambda: self.deleteFile(index))
-            renameAction = QAction(QIcon('rename.png'), 'Rename', self)
+            renameAction = QAction(QIcon('img/rename.png'), 'Rename', self)
             renameAction.triggered.connect(lambda: self.renameFile(index))
             contextMenu.addAction(deleteAction)
             contextMenu.addAction(renameAction)
