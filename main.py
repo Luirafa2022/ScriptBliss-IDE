@@ -332,10 +332,11 @@ class MainWindow(QMainWindow):
         if fileName.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
             self.displayImage(fileName)
         else:
-            with open(fileName, 'r') as f:
+            with open(fileName, 'r', encoding='utf-8') as f:
                 code = f.read()
                 self.editor.setText(code)
                 self.setWindowTitle(f"ScriptBliss - {fileName}")
+
 
             # Set the appropriate lexer based on the file extension
             if fileName.endswith('.py'):
