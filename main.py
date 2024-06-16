@@ -75,7 +75,7 @@ class MainWindow(QMainWindow):
         self.imageViewer.setStyleSheet("background-color: #1e1e3e;")
         self.editor.setUtf8(True)  # Ensure the editor is in UTF-8 mode
         self.editor.setCaretForegroundColor(QColor("#00091a"))
-        # Define a largura da tabulação para 4 espaços
+        # Define a largura da tabulação para 4 espaçosasds
         self.editor.setTabWidth(4) 
         # Conecta o evento de tecla pressionada do editor
         self.editor.keyPressEvent = self.editorKeyPressEvent
