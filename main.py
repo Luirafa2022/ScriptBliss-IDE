@@ -421,85 +421,114 @@ class MainWindow(QMainWindow):
             self.console.clear()
             self.terminal.clear()
 
-        command = None
+            if self.currentFile.endswith('.py'):
+                command = f'python "{self.currentFile}"'
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                self.process.finished.connect(self.processFinished)
+                self.process.start(command)
 
-        if self.currentFile.endswith('.py'):
-            command = f'python "{self.currentFile}"'
+            elif self.currentFile.endswith('.java'):
+                compile_command = f'javac "{self.currentFile}"'
+                self.process = QProcess()
+                self.process.start(compile_command)
+                self.process.waitForFinished()
+                compile_output = self.process.readAllStandardOutput().data().decode()
+                compile_error = self.process.readAllStandardError().data().decode()
 
-        elif self.currentFile.endswith('.java'):
-            compile_command = f'javac "{self.currentFile}"'
-            self.process = QProcess()
-            self.process.start(compile_command)
-            self.process.waitForFinished()
-            compile_output = self.process.readAllStandardOutput().data().decode()
-            compile_error = self.process.readAllStandardError().data().decode()
+                if compile_error:
+                    self.console.append(f"<span style='color:#ff8c8c;'>{compile_error}</span>")
+                    return
 
-            if compile_error:
-                self.console.append(compile_error)
+                class_name = os.path.splitext(os.path.basename(self.currentFile))[0]
+                run_command = f'java -cp "{os.path.dirname(self.currentFile)}" {class_name}'
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                self.process.finished.connect(self.processFinished)
+                self.process.start(run_command)
+
+            elif self.currentFile.endswith('.cpp'):
+                executable = self.currentFile[:-4]
+                compile_command = f'g++ "{self.currentFile}" -o "{executable}"'
+                run_command = f'"{executable}"'
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+
+                self.process.start(compile_command)
+                self.process.waitForFinished()
+                compile_output = self.process.readAllStandardOutput().data().decode()
+                compile_error = self.process.readAllStandardError().data().decode()
+
+                if compile_error:
+                    self.console.append(f"<span style='color: #ff8c8c;'>{compile_error}</span>")
+                    return
+
+                self.process.start(run_command)
+                self.process.finished.connect(self.processFinished)
+
+            elif self.currentFile.endswith('.rb'):
+                command = f'ruby "{self.currentFile}"'
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                self.process.finished.connect(self.processFinished)
+                self.process.start(command)
+
+            elif self.currentFile.endswith('.php'):
+                command = f'php "{self.currentFile}"'
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                self.process.finished.connect(self.processFinished)
+                self.process.start(command)
+
+            elif self.currentFile.endswith('.html'):
+                html_file_path = f'file://{os.path.abspath(self.currentFile)}'
+                webbrowser.open(html_file_path)
+                self.console.append(f"Opened {self.currentFile} in the default web browser.")
+
+            elif self.currentFile.endswith('.js'):
+                # Ensure Node.js is installed and the path is correct
+                command = f'node "{self.currentFile}"'
+                self.process = QProcess()
+                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                self.process.finished.connect(self.processFinished)
+                self.process.start(command)
+
+            elif self.currentFile.endswith('.css'):
+                self.console.append("Cannot execute CSS files directly.")
+
+            else:
+                self.console.append("Unsupported file format for direct execution.")
                 return
-
-            class_name = os.path.splitext(os.path.basename(self.currentFile))[0]
-            command = f'java -cp "{os.path.dirname(self.currentFile)}" {class_name}'
-
-        elif self.currentFile.endswith('.cpp'):
-            executable = self.currentFile[:-4]
-            compile_command = f'g++ "{self.currentFile}" -o "{executable}"'
-            self.process = QProcess()
-            self.process.start(compile_command)
-            self.process.waitForFinished()
-            compile_output = self.process.readAllStandardOutput().data().decode()
-            compile_error = self.process.readAllStandardError().data().decode()
-
-            if compile_error:
-                self.console.append(compile_error)
-                return
-
-            command = f'"{executable}"'
-
-        elif self.currentFile.endswith('.rb'):
-            command = f'ruby "{self.currentFile}"'
-
-        elif self.currentFile.endswith('.php'):
-            command = f'php "{self.currentFile}"'
-
-        elif self.currentFile.endswith('.html'):
-            html_file_path = f'file://{os.path.abspath(self.currentFile)}'
-            webbrowser.open(html_file_path)
-            self.console.append(f"Opened {self.currentFile} in the default web browser.")
-
-        elif self.currentFile.endswith('.js'):
-            command = f'node "{self.currentFile}"'
-
-        elif self.currentFile.endswith('.css'):
-            self.console.append("Cannot execute CSS files directly.")
-
-        else:
-            self.console.append("Unsupported file format for direct execution.")
-            return
-
-        if command:
-            self.process = QProcess()
-            self.process.setProcessChannelMode(QProcess.MergedChannels)
-            self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-            self.process.readyReadStandardError.connect(self.updateConsoleOutput)
-            self.process.start(command)
 
         self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
-
         
     def updateConsoleOutput(self):
         output = self.process.readAllStandardOutput().data().decode()
         error = self.process.readAllStandardError().data().decode()
-        self.console.append(output + error)
-
+        if error:
+            self.console.append(f"<span style='color: #ff8c8c;'>{error}</span>")
+        else:
+            self.console.append(output)
 
     def processFinished(self):
         if self.process.exitStatus() == QProcess.CrashExit:
-            self.console.append("<span style='color:red;'>Process crashed.</span>")
+            self.console.append("<span style='color: #ff8c8c;'>Process crashed.</span>")
         elif self.process.exitCode() != 0:
-            self.console.append(f"<span style='color:red;'>Process finished with exit code {self.process.exitCode()}.</span>")
+            self.console.append(f"<span style='color: #ff8c8c;'>Process finished with exit code {self.process.exitCode()}.</span>")
         else:
-            self.console.append("<span style='color:green;'>Process finished successfully.</span>")
+            self.console.append("<span style='color: #c9dcff;'>Process finished successfully.</span>")
 
     def gitCommit(self):
         message, ok = QInputDialog.getText(self, 'Git Commit', 'Enter commit message:')
