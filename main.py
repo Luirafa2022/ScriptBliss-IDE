@@ -49,6 +49,7 @@ class MainWindow(QMainWindow):
         self.initUI()
         self.debugToolbar = QToolBar("Debug Toolbar")
         self.addToolBar(self.debugToolbar)
+        self.debugToolbar.setVisible(False)  # Inicialmente, a barra de ferramentas está oculta
         self.setupDebugToolbar()
 
     def setupDebugToolbar(self):
@@ -367,6 +368,7 @@ class MainWindow(QMainWindow):
             self.process.finished.connect(self.processFinished)
             self.process.start(command)
 
+            self.debugToolbar.setVisible(True)  # Mostrar a barra de ferramentas de depuração
             self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
 
     def newFile(self):
@@ -576,8 +578,10 @@ class MainWindow(QMainWindow):
             else:
                 self.console.append("Unsupported file format for direct execution.")
                 return
-
+            
+        self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
         self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
+
         
     def updateConsoleOutput(self):
         output = self.process.readAllStandardOutput().data().decode()
@@ -594,6 +598,8 @@ class MainWindow(QMainWindow):
             self.console.append(f"<span style='color: #ff8c8c;'>Process finished with exit code {self.process.exitCode()}.</span>")
         else:
             self.console.append("<span style='color: #c9dcff;'>Process finished successfully.</span>")
+
+        self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
 
     def gitCommit(self):
         message, ok = QInputDialog.getText(self, 'Git Commit', 'Enter commit message:')
