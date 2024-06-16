@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
     def initUI(self):
         self.setWindowTitle("ScriptBliss")
         self.setWindowIcon(QIcon('img/logo.png'))
-        self.setGeometry(100, 100, 1200, 800)          
+        self.setGeometry(100, 100, 1200, 800)
         self.showMaximized()
 
         dark_palette = QPalette()
