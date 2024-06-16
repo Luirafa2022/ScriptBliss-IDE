@@ -16,6 +16,7 @@ class CustomFileSystemModel(QFileSystemModel):
             '.cpp': QIcon('img/cpp.png'),
             '.css': QIcon('img/css.png'),
             '.java': QIcon('img/java.png'),
+            '.class': QIcon('img/classe.png'),
             '.php': QIcon('img/php.png'),
             '.html': QIcon('img/html.png'),
             '.js': QIcon('img/javascript.png'),
@@ -558,8 +559,8 @@ class MainWindow(QMainWindow):
     def onFileClicked(self, index):
         if not self.fileSystemModel.isDir(index):
             fileName = self.fileSystemModel.filePath(index)
-            if fileName.endswith(('.exe', '.zip')):
-                QMessageBox.information(self, "Formato Incompatível", "Este tipo de arquivo não pode ser visualizado na IDE.")
+            if fileName.endswith(('.exe', '.zip', '.class')):
+                QMessageBox.information(self, "Incompatible format", "This file type cannot be viewed in the IDE.")
             else:
                 self.loadFile(fileName)
 
