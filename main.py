@@ -313,6 +313,12 @@ class MainWindow(QMainWindow):
         debugAction.setStatusTip('Debug Code')
         debugAction.triggered.connect(self.debugCode)
         debugMenu.addAction(debugAction)
+        debugMenu = menubar.addMenu('&Debug')
+        debugAction = QAction(QIcon('img/debug.png'), 'Debug Code', self)
+        debugAction.setShortcut('Ctrl+D')
+        debugAction.setStatusTip('Debug Code')
+        debugAction.triggered.connect(self.debugCode)
+        debugMenu.addAction(debugAction)
 
         fileMenu.addAction(newFile)
         fileMenu.addAction(openFile)
