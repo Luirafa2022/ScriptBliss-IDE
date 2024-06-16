@@ -8,6 +8,7 @@ from PyQt5.QtGui import (QIcon, QColor, QPalette, QFont, QFontMetrics, QPixmap, 
 from PyQt5.QtCore import (Qt, QDir, QProcess, QTimer, QUrl, QPoint)
 from PyQt5.Qsci import (QsciScintilla, QsciLexerPython, QsciLexerJava, QsciLexerHTML, QsciLexerJavaScript,
                         QsciLexerCSS, QsciLexerCPP, QsciLexerRuby)
+from PyQt5.QtWidgets import QToolBar, QAction
 
 class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):
@@ -46,7 +47,51 @@ class MainWindow(QMainWindow):
         self.projectPath = QDir.currentPath()
         self.process = None
         self.initUI()
+        self.debugToolbar = QToolBar("Debug Toolbar")
+        self.addToolBar(self.debugToolbar)
+        self.debugToolbar.setVisible(False)  # Inicialmente, a barra de ferramentas está oculta
+        self.setupDebugToolbar()
 
+    def setupDebugToolbar(self):
+        nextAction = QAction(QIcon('img/next.png'), 'Next', self)
+        nextAction.setStatusTip('Execute next line')
+        nextAction.triggered.connect(lambda: self.sendDebugCommand('n'))
+        self.debugToolbar.addAction(nextAction)
+
+        stepAction = QAction(QIcon('img/step.png'), 'Step', self)
+        stepAction.setStatusTip('Step into function')
+        stepAction.triggered.connect(lambda: self.sendDebugCommand('s'))
+        self.debugToolbar.addAction(stepAction)
+
+        continueAction = QAction(QIcon('img/continue.png'), 'Continue', self)
+        continueAction.setStatusTip('Continue execution')
+        continueAction.triggered.connect(lambda: self.sendDebugCommand('c'))
+        self.debugToolbar.addAction(continueAction)
+
+        listAction = QAction(QIcon('img/list.png'), 'List', self)
+        listAction.setStatusTip('List code around current line')
+        listAction.triggered.connect(lambda: self.sendDebugCommand('l'))
+        self.debugToolbar.addAction(listAction)
+
+        breakAction = QAction(QIcon('img/break.png'), 'Break', self)
+        breakAction.setStatusTip('Set breakpoint')
+        breakAction.triggered.connect(lambda: self.sendDebugCommand('b'))
+        self.debugToolbar.addAction(breakAction)
+
+        printAction = QAction(QIcon('img/print.png'), 'Print', self)
+        printAction.setStatusTip('Print variable value')
+        printAction.triggered.connect(lambda: self.sendDebugCommand('p'))
+        self.debugToolbar.addAction(printAction)
+
+        quitAction = QAction(QIcon('img/quit.png'), 'Quit', self)
+        quitAction.setStatusTip('Quit debugger')
+        quitAction.triggered.connect(lambda: self.sendDebugCommand('q'))
+        self.debugToolbar.addAction(quitAction)
+
+    def sendDebugCommand(self, command):
+        if self.process and self.process.state() == QProcess.Running:
+            self.process.write((command + '\n').encode())
+            self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
     def initUI(self):
         self.setWindowTitle("ScriptBliss")
         self.setWindowIcon(QIcon('img/logo.png'))
@@ -262,6 +307,12 @@ class MainWindow(QMainWindow):
         gitPull = QAction(QIcon('img/pull.png'), 'Pull', self)
         gitPull.setStatusTip('Pull changes')
         gitPull.triggered.connect(self.gitPull)
+        debugMenu = menubar.addMenu('&Debug')
+        debugAction = QAction(QIcon('img/debug.png'), 'Debug Code', self)
+        debugAction.setShortcut('Ctrl+Shift+R')
+        debugAction.setStatusTip('Debug Code')
+        debugAction.triggered.connect(self.debugCode)
+        debugMenu.addAction(debugAction)
 
         fileMenu.addAction(newFile)
         fileMenu.addAction(openFile)
@@ -303,6 +354,22 @@ class MainWindow(QMainWindow):
         compilerMenu.addAction(rubyCompiler)
         compilerMenu.addAction(phpCompiler)
         compilerMenu.addAction(jsCompiler)
+
+    def debugCode(self):
+        if self.currentFile and self.currentFile.endswith('.py'):
+            self.console.clear()
+            self.terminal.clear()
+
+            command = f'python -m pdb "{self.currentFile}"'
+            self.process = QProcess()
+            self.process.setProcessChannelMode(QProcess.SeparateChannels)
+            self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+            self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+            self.process.finished.connect(self.processFinished)
+            self.process.start(command)
+
+            self.debugToolbar.setVisible(True)  # Mostrar a barra de ferramentas de depuração
+            self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
 
     def newFile(self):
         text, ok = QInputDialog.getText(self, 'New File', 'Enter file name:')
@@ -504,15 +571,17 @@ class MainWindow(QMainWindow):
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
                 self.process.start(command)
-
+   
             elif self.currentFile.endswith('.css'):
                 self.console.append("Cannot execute CSS files directly.")
 
             else:
                 self.console.append("Unsupported file format for direct execution.")
                 return
-
+            
+        self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
         self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
+
         
     def updateConsoleOutput(self):
         output = self.process.readAllStandardOutput().data().decode()
@@ -529,6 +598,8 @@ class MainWindow(QMainWindow):
             self.console.append(f"<span style='color: #ff8c8c;'>Process finished with exit code {self.process.exitCode()}.</span>")
         else:
             self.console.append("<span style='color: #c9dcff;'>Process finished successfully.</span>")
+
+        self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
 
     def gitCommit(self):
         message, ok = QInputDialog.getText(self, 'Git Commit', 'Enter commit message:')
