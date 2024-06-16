@@ -424,7 +424,7 @@ class MainWindow(QMainWindow):
             if self.currentFile.endswith('.py'):
                 command = f'python "{self.currentFile}"'
                 self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
@@ -445,7 +445,7 @@ class MainWindow(QMainWindow):
                 class_name = os.path.splitext(os.path.basename(self.currentFile))[0]
                 run_command = f'java -cp "{os.path.dirname(self.currentFile)}" {class_name}'
                 self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
@@ -456,7 +456,7 @@ class MainWindow(QMainWindow):
                 compile_command = f'g++ "{self.currentFile}" -o "{executable}"'
                 run_command = f'"{executable}"'
                 self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
 
@@ -475,7 +475,7 @@ class MainWindow(QMainWindow):
             elif self.currentFile.endswith('.rb'):
                 command = f'ruby "{self.currentFile}"'
                 self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
@@ -484,7 +484,7 @@ class MainWindow(QMainWindow):
             elif self.currentFile.endswith('.php'):
                 command = f'php "{self.currentFile}"'
                 self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
@@ -499,7 +499,7 @@ class MainWindow(QMainWindow):
                 # Ensure Node.js is installed and the path is correct
                 command = f'node "{self.currentFile}"'
                 self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.MergedChannels)
+                self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
@@ -519,8 +519,8 @@ class MainWindow(QMainWindow):
         error = self.process.readAllStandardError().data().decode()
         if error:
             self.console.append(f"<span style='color: #ff8c8c;'>{error}</span>")
-        else:
-            self.console.append(output)
+        if output:
+            self.console.append(f"<span style='color: #c9dcff;'>{output}</span>")
 
     def processFinished(self):
         if self.process.exitStatus() == QProcess.CrashExit:
