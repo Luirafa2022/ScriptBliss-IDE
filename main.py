@@ -571,7 +571,7 @@ class MainWindow(QMainWindow):
                 self.process.readyReadStandardError.connect(self.updateConsoleOutput)
                 self.process.finished.connect(self.processFinished)
                 self.process.start(command)
-
+   
             elif self.currentFile.endswith('.css'):
                 self.console.append("Cannot execute CSS files directly.")
 
