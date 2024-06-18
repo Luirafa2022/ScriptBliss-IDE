@@ -51,6 +51,7 @@ class MainWindow(QMainWindow):
         self.addToolBar(self.debugToolbar)
         self.debugToolbar.setVisible(False)  # Inicialmente, a barra de ferramentas está oculta
         self.setupDebugToolbar()
+        self.setupAutocomplete()
 
     def setupDebugToolbar(self):
         nextAction = QAction(QIcon('img/next.png'), 'Next', self)
@@ -217,6 +218,40 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter2)
 
         self.setupMenuBar()
+
+    def setupAutocomplete(self):
+        self.editor.setAutoCompletionSource(QsciScintilla.AcsAll)
+        self.editor.setAutoCompletionThreshold(1)
+        self.editor.setAutoCompletionCaseSensitivity(False)
+        self.editor.setAutoCompletionReplaceWord(True)
+
+        # Adiciona palavras personalizadas para Python
+        python_keywords = "False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield"
+        self.editor.setAutoCompletionFillups(python_keywords)
+
+        # Adiciona palavras personalizadas para Java
+        java_keywords = "abstract assert boolean break byte case catch char class const continue default do double else enum extends final finally float for goto if implements import instanceof int interface long native new package private protected public return short static strictfp super switch synchronized this throw throws transient try void volatile while"
+        self.editor.setAutoCompletionFillups(java_keywords)
+
+        # Adiciona palavras personalizadas para HTML
+        html_keywords = "a abbr address area article aside audio b base bdi bdo big blockquote body br button canvas caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em embed fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hr html i iframe img input ins kbd label legend li link main map mark meta meter nav noscript object ol optgroup option output p param picture pre progress q rp rt ruby s samp script section select small source span strong style sub summary sup table tbody td template textarea tfoot th thead time title tr track u ul var video wbr"
+        self.editor.setAutoCompletionFillups(html_keywords)
+
+        # Adiciona palavras personalizadas para JavaScript
+        js_keywords = "break case catch class const continue debugger default delete do else export extends finally for function if import in instanceof new return super switch this throw try typeof var void while with yield"
+        self.editor.setAutoCompletionFillups(js_keywords)
+
+        # Adiciona palavras personalizadas para CSS
+        css_keywords = "align-content align-items align-self all animation animation-delay animation-direction animation-duration animation-fill-mode animation-iteration-count animation-name animation-play-state animation-timing-function backface-visibility background background-attachment background-blend-mode background-clip background-color background-image background-origin background-position background-repeat background-size border border-bottom border-bottom-color border-bottom-left-radius border-bottom-right-radius border-bottom-style border-bottom-width border-collapse border-color border-image border-image-outset border-image-repeat border-image-slice border-image-source border-image-width border-left border-left-color border-left-style border-left-width border-radius border-right border-right-color border-right-style border-right-width border-spacing border-style border-top border-top-color border-top-left-radius border-top-right-radius border-top-style border-top-width border-width bottom box-decoration-break box-shadow box-sizing break-after break-before break-inside caption-side caret-color @charset clear clip color column-count column-fill column-gap column-rule column-rule-color column-rule-style column-rule-width column-span column-width columns content counter-increment counter-reset cursor direction display empty-cells filter flex flex-basis flex-direction flex-flow flex-grow flex-shrink flex-wrap float font @font-face font-family font-feature-settings font-kerning font-size font-size-adjust font-stretch font-style font-variant font-variant-caps font-weight grid grid-area grid-auto-columns grid-auto-flow grid-auto-rows grid-column grid-column-end grid-column-gap grid-column-start grid-gap grid-row grid-row-end grid-row-gap grid-row-start grid-template grid-template-areas grid-template-columns grid-template-rows hanging-punctuation height hyphens @import isolation justify-content @keyframes left letter-spacing line-height list-style list-style-image list-style-position list-style-type margin margin-bottom margin-left margin-right margin-top max-height max-width @media min-height min-width mix-blend-mode object-fit object-position opacity order orphans outline outline-color outline-offset outline-style outline-width overflow overflow-x overflow-y padding padding-bottom padding-left padding-right padding-top page-break-after page-break-before page-break-inside perspective perspective-origin pointer-events position quotes resize right scroll-behavior tab-size table-layout text-align text-align-last text-decoration text-decoration-color text-decoration-line text-decoration-style text-indent text-justify text-overflow text-shadow text-transform top transform transform-origin transform-style transition transition-delay transition-duration transition-property transition-timing-function unicode-bidi user-select vertical-align visibility white-space width word-break word-spacing word-wrap writing-mode z-index"
+        self.editor.setAutoCompletionFillups(css_keywords)
+
+        # Adiciona palavras personalizadas para C++
+        cpp_keywords = "alignas alignof and and_eq asm auto bitand bitor bool break case catch char char16_t char32_t class compl const const_cast constexpr continue decltype default delete do double dynamic_cast else enum explicit export extern false float for friend goto include if inline int long mutable namespace new noexcept not not_eq nullptr operator or or_eq private protected public register reinterpret_cast return short signed sizeof static static_assert static_cast struct switch template this thread_local throw true try typedef typeid typename union unsigned using virtual void volatile wchar_t while xor xor_eq"
+        self.editor.setAutoCompletionFillups(cpp_keywords)
+
+        # Adiciona palavras personalizadas para Ruby
+        ruby_keywords = "BEGIN END alias and begin break case class def defined? do else elsif end ensure false for if in module next nil not or redo rescue retry return self super then true undef unless until when while yield"
+        self.editor.setAutoCompletionFillups(ruby_keywords)
 
     def editorKeyPressEvent(self, event):
         super(QsciScintilla, self.editor).keyPressEvent(event)
