@@ -49,7 +49,7 @@ class MainWindow(QMainWindow):
         self.initUI()
         self.debugToolbar = QToolBar("Debug Toolbar")
         self.addToolBar(self.debugToolbar)
-        self.debugToolbar.setVisible(False)  # Inicialmente, a barra de ferramentas está oculta
+        self.debugToolbar.setVisible(False)  # Inicialmente, a barra de ferramentas está oculta 
         self.setupDebugToolbar()
         self.setupAutocomplete()
 
