@@ -314,12 +314,18 @@ class MainWindow(QMainWindow):
         gitPull = QAction(QIcon('img/pull.png'), 'Pull', self)
         gitPull.setStatusTip('Pull changes')
         gitPull.triggered.connect(self.gitPull)
+
+        cloneRepo = QAction(QIcon('img/clone.png'), 'Clone Repository', self)
+        cloneRepo.setStatusTip('Clone a repository from GitHub')
+        cloneRepo.triggered.connect(self.cloneRepository)
+
         debugMenu = menubar.addMenu('&Debug')
         debugAction = QAction(QIcon('img/debug.png'), 'Debug Code', self)
         debugAction.setShortcut('Ctrl+Shift+R')
         debugAction.setStatusTip('Debug Code')
         debugAction.triggered.connect(self.debugCode)
         debugMenu.addAction(debugAction)
+
         fileMenu.addAction(newFile)
         fileMenu.addAction(openFile)
         fileMenu.addAction(openFolder)
@@ -328,6 +334,7 @@ class MainWindow(QMainWindow):
         gitMenu.addAction(gitCommit)
         gitMenu.addAction(gitPush)
         gitMenu.addAction(gitPull)
+        gitMenu.addAction(cloneRepo)
 
         # Compilers Menu
         pythonCompiler = QAction(QIcon('img/python.png'),'Python', self)
@@ -606,6 +613,21 @@ class MainWindow(QMainWindow):
             self.console.append("<span style='color: #c9dcff;'>Process finished successfully.</span>")
 
         self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
+
+    def cloneRepository(self):
+        repo_url, ok = QInputDialog.getText(self, 'Clone Repository', 'Enter repository URL:')
+        if ok and repo_url:
+            target_path = QFileDialog.getExistingDirectory(self, "Select Directory to Clone Into")
+            if target_path:
+                process = QProcess()
+                process.setWorkingDirectory(target_path)
+                process.start('git', ['clone', repo_url])
+                process.finished.connect(lambda: self.updateTreeView(target_path))
+
+    def updateTreeView(self, path):
+        self.projectPath = path
+        self.fileSystemModel.setRootPath(path)
+        self.treeView.setRootIndex(self.fileSystemModel.index(path))
 
     def gitCommit(self):
         message, ok = QInputDialog.getText(self, 'Git Commit', 'Enter commit message:')
