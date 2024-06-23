@@ -400,6 +400,7 @@ class MainWindow(QMainWindow):
                                                   "All Files (*);;Python Files (*.py);;Java Files (*.java);;HTML Files (*.html);;JavaScript Files (*.js);;CSS Files (*.css);;C++ Files (*.cpp);;Ruby Files (*.rb);;Image Files (*.png *.jpg *.jpeg *.bmp *.gif)", options=options)
         if fileName:
             self.loadFile(fileName)
+            self.updateTreeViewForFile(fileName)
 
     def openFolderDialog(self):
         folder = QFileDialog.getExistingDirectory(self, "Open Folder", QDir.currentPath())
@@ -407,8 +408,18 @@ class MainWindow(QMainWindow):
             self.projectPath = folder
             self.fileSystemModel.setRootPath(folder)
             self.treeView.setRootIndex(self.fileSystemModel.index(folder))
+            # Limpar o editor
+            self.editor.clear()
+            self.currentFile = ''
+            self.setWindowTitle("ScriptBliss")
+            
+            # Limpar console e terminal
+            self.console.clear()
+            self.terminal.clear()
 
     def loadFile(self, fileName):
+        self.console.clear()
+        self.terminal.clear()
         self.currentFile = fileName
         if fileName.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
             self.displayImage(fileName)
@@ -444,6 +455,21 @@ class MainWindow(QMainWindow):
             # Restore the original self.editor if needed
             if self.splitter1.widget(1) != self.editor:
                 self.splitter1.replaceWidget(1, self.editor)
+        self.updateTreeViewForFile(fileName)
+
+    def updateTreeViewForFile(self, fileName):
+        # Obter o diretório do arquivo
+        fileDir = os.path.dirname(fileName)
+        
+        # Definir o diretório do arquivo como raiz do treeView
+        self.fileSystemModel.setRootPath(fileDir)
+        self.treeView.setRootIndex(self.fileSystemModel.index(fileDir))
+        
+        # Expandir até o arquivo selecionado
+        index = self.fileSystemModel.index(fileName)
+        self.treeView.scrollTo(index)
+        self.treeView.setCurrentIndex(index)
+        self.treeView.expand(index.parent())
 
     def displayImage(self, fileName):
         pixmap = QPixmap(fileName)
@@ -662,6 +688,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Incompatible format", "This file type cannot be viewed in the IDE.")
             else:
                 self.loadFile(fileName)
+                self.updateTreeViewForFile(fileName)
 
 
     def terminalKeyPressEvent(self, event):
