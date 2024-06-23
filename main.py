@@ -2,13 +2,78 @@ import sys
 import os
 import subprocess
 import webbrowser
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTreeView, QFileSystemModel, QSplitter, QTextEdit,
+import shutil
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QTreeView, QAbstractItemView, QFileSystemModel, QSplitter, QTextEdit,
                              QTabWidget, QMenu, QAction, QInputDialog, QMessageBox, QLabel, QFileDialog, QVBoxLayout, QWidget)
-from PyQt5.QtGui import (QIcon, QColor, QPalette, QFont, QFontMetrics, QPixmap, QDesktopServices)
-from PyQt5.QtCore import (Qt, QDir, QProcess, QTimer, QUrl, QPoint)
+from PyQt5.QtGui import (QIcon, QColor, QPalette, QFont, QFontMetrics, QPixmap, QDesktopServices, QDrag, QCursor)
+from PyQt5.QtCore import (Qt, QDir, QProcess, QTimer, QUrl, QPoint, QMimeData, QFileInfo, pyqtSignal)
 from PyQt5.Qsci import (QsciScintilla, QsciLexerPython, QsciLexerJava, QsciLexerHTML, QsciLexerJavaScript,
                         QsciLexerCSS, QsciLexerCPP, QsciLexerRuby)
 from PyQt5.QtWidgets import QToolBar, QAction
+
+class DraggableTreeView(QTreeView):
+    dropped = pyqtSignal(list)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDragDropMode(QAbstractItemView.InternalMove)
+        self.setDropIndicatorShown(True)
+
+    def dragEnterEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragEnterEvent(event)
+
+    def dragMoveEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+        else:
+            super().dragMoveEvent(event)
+
+    def dropEvent(self, event):
+        if event.mimeData().hasUrls():
+            event.setDropAction(Qt.MoveAction)
+            event.accept()
+            links = []
+            for url in event.mimeData().urls():
+                source_path = url.toLocalFile()
+                links.append(source_path)
+                target_index = self.indexAt(event.pos())
+                if target_index.isValid():
+                    target_path = self.model().filePath(target_index)
+                    if self.model().isDir(target_index):
+                        target_dir = target_path
+                    else:
+                        target_dir = os.path.dirname(target_path)
+                else:
+                    target_dir = self.model().rootPath()
+                
+                # Move o arquivo
+                try:
+                    shutil.move(source_path, target_dir)
+                except Exception as e:
+                    print(f"Erro ao mover arquivo: {e}")
+            
+            self.dropped.emit(links)
+            self.model().setRootPath(self.model().rootPath())  # Atualiza a visualização
+        else:
+            super().dropEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if event.buttons() & Qt.LeftButton:
+            index = self.indexAt(event.pos())
+            if index.isValid():
+                drag = QDrag(self)
+                mime = QMimeData()
+                urls = [QUrl.fromLocalFile(self.model().filePath(index))]
+                mime.setUrls(urls)
+                drag.setMimeData(mime)
+                drag.exec_(Qt.MoveAction)
+        else:
+            super().mouseMoveEvent(event)
 
 class CustomFileSystemModel(QFileSystemModel):
     def __init__(self, parent=None):
@@ -151,7 +216,7 @@ class MainWindow(QMainWindow):
         self.fileSystemModel = CustomFileSystemModel()
         self.fileSystemModel.setRootPath(self.projectPath)
 
-        self.treeView = QTreeView()
+        self.treeView = DraggableTreeView()
         self.treeView.setModel(self.fileSystemModel)
         self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
         self.treeView.clicked.connect(self.onFileClicked)
@@ -159,6 +224,7 @@ class MainWindow(QMainWindow):
         self.treeView.setIndentation(10)
         self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treeView.customContextMenuRequested.connect(self.showContextMenu)
+        self.treeView.dropped.connect(self.onDropped)
 
         self.treeView.setColumnHidden(1, True)
         self.treeView.setColumnHidden(2, True)
@@ -224,6 +290,20 @@ class MainWindow(QMainWindow):
         self.editor.setAutoCompletionThreshold(1)
         self.editor.setAutoCompletionCaseSensitivity(False)
         self.editor.setAutoCompletionReplaceWord(True)
+
+    def onDropped(self, links):
+        for link in links:
+            info = QFileInfo(link)
+            if info.isDir():
+                QMessageBox.information(self, "Dropped directory", "Dropping directories is not supported")
+            else:
+                newDir = self.treeView.model().filePath(self.treeView.indexAt(self.treeView.viewport().mapFromGlobal(QCursor.pos())))
+                newPath = os.path.join(newDir, info.fileName())
+                if newPath != link:  # Não mova se for o mesmo local
+                    try:
+                        shutil.move(link, newPath)
+                    except Exception as e:
+                        print("Ok")
         
     def editorKeyPressEvent(self, event):
         super(QsciScintilla, self.editor).keyPressEvent(event)
@@ -283,6 +363,11 @@ class MainWindow(QMainWindow):
         newFile.setStatusTip('Create new file')
         newFile.triggered.connect(self.newFile)
 
+        newFolderAction = QAction(QIcon('img/new_folder.png'), 'New Folder', self)
+        newFolderAction.setShortcut('Ctrl+Shift+N')
+        newFolderAction.setStatusTip('Create new folder')
+        newFolderAction.triggered.connect(lambda: self.createFolder(self.treeView.rootIndex()))
+
         openFile = QAction(QIcon('img/open.png'), 'Open', self)
         openFile.setShortcut('Ctrl+O')
         openFile.setStatusTip('Open existing file')
@@ -327,6 +412,7 @@ class MainWindow(QMainWindow):
         debugMenu.addAction(debugAction)
 
         fileMenu.addAction(newFile)
+        fileMenu.addAction(newFolderAction)
         fileMenu.addAction(openFile)
         fileMenu.addAction(openFolder)
         fileMenu.addAction(saveFile)
@@ -688,7 +774,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Incompatible format", "This file type cannot be viewed in the IDE.")
             else:
                 self.loadFile(fileName)
-                self.updateTreeViewForFile(fileName)
+                self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
 
 
     def terminalKeyPressEvent(self, event):
@@ -716,16 +802,34 @@ class MainWindow(QMainWindow):
             contextMenu.addAction(renameAction)
             contextMenu.exec_(self.treeView.mapToGlobal(point))
 
+    def createFolder(self, parentIndex):
+        folderName, ok = QInputDialog.getText(self, 'Create Folder', 'Enter folder name:')
+        if ok and folderName:
+            parentPath = self.fileSystemModel.filePath(parentIndex)
+            newFolderPath = os.path.join(parentPath, folderName)
+            try:
+                os.mkdir(newFolderPath)
+                self.treeView.setExpanded(parentIndex, True)
+                newIndex = self.fileSystemModel.index(newFolderPath)
+                self.treeView.scrollTo(newIndex)
+                self.treeView.setCurrentIndex(newIndex)
+            except OSError as e:
+                self.showErrorMessage("Error", f"Failed to create folder: {str(e)}")
+
     def deleteFile(self, index=None):
         if index is None:
             index = self.treeView.currentIndex()
         filePath = self.fileSystemModel.filePath(index)
-        if QMessageBox.question(self, 'Delete File', f'Are you sure you want to delete "{filePath}"?', QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
-            if os.path.isfile(filePath):
-                os.remove(filePath)
-            elif os.path.isdir(filePath):
-                os.rmdir(filePath)
-            self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
+        if QMessageBox.question(self, 'Delete', f'Are you sure you want to delete "{filePath}"?', QMessageBox.Yes | QMessageBox.No) == QMessageBox.Yes:
+            try:
+                if os.path.isfile(filePath):
+                    os.remove(filePath)
+                elif os.path.isdir(filePath):
+                    import shutil
+                    shutil.rmtree(filePath)
+                self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
+            except OSError as e:
+                self.showErrorMessage("Error", f"Failed to delete: {str(e)}")
         # Limpar o editor
             self.editor.clear()
             self.currentFile = ''
