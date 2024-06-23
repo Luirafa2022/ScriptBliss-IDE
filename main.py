@@ -726,6 +726,14 @@ class MainWindow(QMainWindow):
             elif os.path.isdir(filePath):
                 os.rmdir(filePath)
             self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
+        # Limpar o editor
+            self.editor.clear()
+            self.currentFile = ''
+            self.setWindowTitle("ScriptBliss")
+            
+            # Limpar console e terminal
+            self.console.clear()
+            self.terminal.clear()
 
     def renameFile(self, index=None):
         if index is None:
