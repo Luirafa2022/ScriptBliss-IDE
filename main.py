@@ -2,6 +2,7 @@ import sys
 import os
 import subprocess
 import webbrowser
+import codecs
 import shutil
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTreeView, QAbstractItemView, QFileSystemModel, QSplitter, QTextEdit,
                              QTabWidget, QMenu, QAction, QInputDialog, QMessageBox, QLabel, QFileDialog, QVBoxLayout, QWidget)
@@ -510,11 +511,19 @@ class MainWindow(QMainWindow):
         if fileName.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
             self.displayImage(fileName)
         else:
-            with open(fileName, 'r', encoding='utf-8') as f:
-                code = f.read()
-                self.editor.setText(code)
-                self.setWindowTitle(f"ScriptBliss - {fileName}")
-
+            encodings = ['utf-8', 'iso-8859-1', 'windows-1252', 'ascii']
+            for encoding in encodings:
+                try:
+                    with codecs.open(fileName, 'r', encoding=encoding) as f:
+                        code = f.read()
+                        self.editor.setText(code)
+                        self.setWindowTitle(f"ScriptBliss - {fileName}")
+                    break
+                except UnicodeDecodeError:
+                    continue
+            else:
+                QMessageBox.critical(self, "Error", f"Unable to decode the file {fileName} with any of the attempted encodings.")
+                return
 
             # Set the appropriate lexer based on the file extension
             if fileName.endswith('.py'):
@@ -609,16 +618,31 @@ class MainWindow(QMainWindow):
 
     def runCode(self):
         if self.currentFile:
-            # Clear the output and terminal before executing the code
             self.console.clear()
             self.terminal.clear()
 
             if self.currentFile.endswith('.py'):
-                command = f'python "{self.currentFile}"'
-                self.process = QProcess()
+                # Detecta a codificação do arquivo
+                encodings = ['utf-8', 'iso-8859-1', 'windows-1252', 'ascii']
+                detected_encoding = None
+                for encoding in encodings:
+                    try:
+                        with codecs.open(self.currentFile, 'r', encoding=encoding) as f:
+                            f.read()
+                        detected_encoding = encoding
+                        break
+                    except UnicodeDecodeError:
+                        continue
+                
+                if detected_encoding:
+                    command = f'python -X utf8=0 -c "import codecs; exec(codecs.open(\'{self.currentFile}\', encoding=\'{detected_encoding}\').read())"'
+                else:
+                    command = f'python "{self.currentFile}"'
+                
+                self.process = QProcess(self)
                 self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                self.process.readyReadStandardError.connect(self.updateConsoleError)
                 self.process.finished.connect(self.processFinished)
                 self.process.start(command)
 
@@ -707,24 +731,60 @@ class MainWindow(QMainWindow):
         self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
         self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
 
-        
     def updateConsoleOutput(self):
-        output = self.process.readAllStandardOutput().data().decode()
-        error = self.process.readAllStandardError().data().decode()
-        if error:
-            self.console.append(f"<span style='color: #ff8c8c;'>{error}</span>")
-        if output:
-            self.console.append(f"<span style='color: #c9dcff;'>{output}</span>")
+        if not self.process:
+            return
 
+        encodings = ['utf-8', 'cp1252', 'iso-8859-1', 'ascii']
+        
+        for encoding in encodings:
+            try:
+                output = self.process.readAllStandardOutput().data().decode(encoding)
+                if output:
+                    self.console.append(f"<span style='color: #c9dcff;'>{output}</span>")
+                return
+            except UnicodeDecodeError:
+                continue
+        
+        self.console.append("<span style='color: #ff8c8c;'>Failed to decode output. Try converting the file to UTF-8.</span>")
+   
+    def updateConsoleError(self):
+        if not self.process:
+            return
+
+        encodings = ['utf-8', 'cp1252', 'iso-8859-1', 'ascii']
+        
+        for encoding in encodings:
+            try:
+                error = self.process.readAllStandardError().data().decode(encoding)
+                if error:
+                    self.console.append(f"<span style='color: #ff8c8c;'>{error}</span>")
+                return
+            except UnicodeDecodeError:
+                continue
+        
+        self.console.append("<span style='color: #ff8c8c;'>Failed to decode error output. Try converting the file to UTF-8.</span>")
+        
     def processFinished(self):
-        if self.process.exitStatus() == QProcess.CrashExit:
+        if not self.process:
+            return
+
+        exit_code = self.process.exitCode()
+        exit_status = self.process.exitStatus()
+
+        if exit_status == QProcess.CrashExit:
             self.console.append("<span style='color: #ff8c8c;'>Process crashed.</span>")
-        elif self.process.exitCode() != 0:
-            self.console.append(f"<span style='color: #ff8c8c;'>Process finished with exit code {self.process.exitCode()}.</span>")
+        elif exit_code != 0:
+            self.console.append(f"<span style='color: #ff8c8c;'>Process finished with exit code {exit_code}. Check the output above for error details.</span>")
         else:
             self.console.append("<span style='color: #c9dcff;'>Process finished successfully.</span>")
 
-        self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
+        # Capture any remaining output
+        self.updateConsoleOutput()
+        self.updateConsoleError()
+
+        self.debugToolbar.setVisible(False)
+        self.process = None
 
     def cloneRepository(self):
         repo_url, ok = QInputDialog.getText(self, 'Clone Repository', 'Enter repository URL:')
