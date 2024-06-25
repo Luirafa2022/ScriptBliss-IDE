@@ -384,6 +384,11 @@ class MainWindow(QMainWindow):
         saveFile.setStatusTip('Save current file')
         saveFile.triggered.connect(self.saveFileDialog)
 
+        self.autosaveAction = QAction(QIcon('img/autosave.png'), 'Enable Autosave', self)
+        self.autosaveAction.setCheckable(True)
+        self.autosaveAction.setStatusTip('Toggle autosave functionality')
+        self.autosaveAction.triggered.connect(self.toggleAutosave)
+
         runAction = QAction(QIcon('img/run.png'), 'Run Code', self)
         runAction.setShortcut('Ctrl+R')
         runAction.setStatusTip('Run Code')
@@ -417,6 +422,7 @@ class MainWindow(QMainWindow):
         fileMenu.addAction(openFile)
         fileMenu.addAction(openFolder)
         fileMenu.addAction(saveFile)
+        fileMenu.addAction(self.autosaveAction)
         runMenu.addAction(runAction)
         gitMenu.addAction(gitCommit)
         gitMenu.addAction(gitPush)
@@ -516,7 +522,7 @@ class MainWindow(QMainWindow):
                 try:
                     with codecs.open(fileName, 'r', encoding=encoding) as f:
                         code = f.read()
-                        self.editor.setText(code)
+                        self.editor.setText(code.rstrip('\n')) 
                         self.setWindowTitle(f"ScriptBliss - {fileName}")
                     break
                 except UnicodeDecodeError:
@@ -608,13 +614,30 @@ class MainWindow(QMainWindow):
         else:
             options = QFileDialog.Options()
             fileName, _ = QFileDialog.getSaveFileName(self, "Save File", self.projectPath,
-                                                      "All Files (*);;Python Files (*.py);;Java Files (*.java);;HTML Files (*.html);;JavaScript Files (*.js);;CSS Files (*.css);;C++ Files (*.cpp);;Ruby Files (*.rb)", options=options)
+                                                    "All Files (*);;Python Files (*.py);;Java Files (*.java);;HTML Files (*.html);;JavaScript Files (*.js);;CSS Files (*.css);;C++ Files (*.cpp);;Ruby Files (*.rb)", options=options)
         if fileName:
-            with open(fileName, 'w') as f:
+            with open(fileName, 'w', newline='') as f:  # Add newline='' parameter
                 code = self.editor.text()
-                f.write(code)
+                f.write(code.rstrip('\n'))  # Remove trailing newlines before saving
             self.currentFile = fileName
             self.setWindowTitle(f"ScriptBliss - {fileName}")
+
+    def toggleAutosave(self, checked):
+        if checked:
+            self.autosaveTimer = QTimer(self)
+            self.autosaveTimer.timeout.connect(self.autosave)
+            self.autosaveTimer.start(1000)  # Autosave every 1 seconds
+            self.autosaveAction.setText('Autosave Enabled')
+        else:
+            if hasattr(self, 'autosaveTimer'):
+                self.autosaveTimer.stop()
+            self.autosaveAction.setText('Enable Autosave')
+
+    def autosave(self):
+        if self.currentFile:
+            with open(self.currentFile, 'w', newline='') as f:  # Add newline='' parameter
+                code = self.editor.text()
+                f.write(code.rstrip('\n'))  # Remove trailing newlines before saving
 
     def runCode(self):
         if self.currentFile:
