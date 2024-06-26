@@ -5,5 +5,5 @@ Essa é uma IDE em fases iniciais
 
 Para utilizar essa IDE Open-Source
 ```
-pip install pyqt5 qscintilla
+pip install pyqt5 qscintilla esprima
 ```

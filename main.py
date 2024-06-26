@@ -1,5 +1,6 @@
 import sys
 import os
+import re
 import subprocess
 import webbrowser
 import codecs
@@ -118,6 +119,86 @@ class MainWindow(QMainWindow):
         self.debugToolbar.setVisible(False)  # Inicialmente, a barra de ferramentas está oculta 
         self.setupDebugToolbar()
         self.setupAutocomplete()
+        self.setupSyntaxCheck()
+        self.syntaxCheckTimer = QTimer()
+        self.syntaxCheckTimer.setSingleShot(True)
+        self.syntaxCheckTimer.timeout.connect(self.checkSyntax)
+        self.editor.textChanged.connect(self.startSyntaxCheckTimer)
+        self.editor.setMarkerBackgroundColor(QColor("#ff0000"), 8)
+        self.editor.markerDefine(QsciScintilla.RightTriangle, 8)
+
+        # Configure o indicador para sublinhar erros
+        self.ERROR_INDICATOR = 8
+        self.editor.indicatorDefine(QsciScintilla.SquiggleIndicator, self.ERROR_INDICATOR)
+        self.editor.setIndicatorForegroundColor(QColor("red"), self.ERROR_INDICATOR)
+
+    def setupSyntaxCheck(self):
+        self.syntaxCheckTimer = QTimer()
+        self.syntaxCheckTimer.setSingleShot(True)
+        self.syntaxCheckTimer.timeout.connect(self.checkSyntax)
+
+    def showProblem(self, e):
+        # Limpe indicadores anteriores
+        self.editor.clearIndicatorRange(0, 0, self.editor.lines(), 0, self.ERROR_INDICATOR)
+        
+        # Adicione o novo indicador
+        line = e.lineno - 1
+        start = e.offset - 1 if e.offset else 0
+        self.editor.fillIndicatorRange(line, start, line, self.editor.lineLength(line), self.ERROR_INDICATOR)
+        
+        problem = f"Line {e.lineno}: {e.msg}"
+        self.problemsWidget.append(problem)
+        self.bottomTabWidget.setCurrentIndex(2)  # Muda para a aba "Problems"
+
+    def clearProblems(self):
+        # Limpe todos os indicadores no editor
+        self.editor.clearIndicatorRange(0, 0, self.editor.lines(), len(self.editor.text()), self.ERROR_INDICATOR)
+        self.problemsWidget.clear()
+
+    def startSyntaxCheckTimer(self):
+        self.syntaxCheckTimer.start(1000)  # Verifica a sintaxe após 1 segundo de inatividade
+
+    def checkSyntax(self):
+        if not self.currentFile:
+            return
+
+        self.clearProblems()
+        code = self.editor.text()
+        file_extension = os.path.splitext(self.currentFile)[1].lower()
+
+        if file_extension == '.py':
+            self.checkPythonSyntax(code)
+        elif file_extension == '.cpp':
+            self.checkCppSyntax(code)
+        elif file_extension == '.js':
+            self.checkJavaScriptSyntax(code)
+
+    def checkPythonSyntax(self, code):
+        try:
+            compile(code, '<string>', 'exec')
+        except SyntaxError as e:
+            self.showProblem(e)
+
+    def checkCppSyntax(self, code):
+        process = subprocess.Popen(['g++', '-fsyntax-only', '-x', 'c++', '-'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        _, stderr = process.communicate(input=code)
+
+        if stderr:
+            for line in stderr.splitlines():
+                if ': error:' in line:
+                    parts = line.split(':')
+                    line_num = int(parts[1])
+                    error_msg = ':'.join(parts[3:]).strip()
+                    self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, code.splitlines()[line_num-1])))
+
+    def checkJavaScriptSyntax(self, code):
+        try:
+            import esprima
+            esprima.parseScript(code)
+        except esprima.Error as e:
+            line_num = e.lineNumber
+            error_msg = str(e)
+            self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, code.splitlines()[line_num-1])))
 
     def setupDebugToolbar(self):
         nextAction = QAction(QIcon('img/next.png'), 'Next', self)
@@ -187,7 +268,7 @@ class MainWindow(QMainWindow):
         self.imageViewer.setStyleSheet("background-color: #1e1e3e;")
         self.editor.setUtf8(True)  # Ensure the editor is in UTF-8 mode
         self.editor.setCaretForegroundColor(QColor("#00091a"))
-        # Define a largura da tabulação para 4 espaçosasds
+        # Define a largura da tabulação para 4 espaços
         self.editor.setTabWidth(4) 
         # Conecta o evento de tecla pressionada do editor
         self.editor.keyPressEvent = self.editorKeyPressEvent
@@ -209,6 +290,10 @@ class MainWindow(QMainWindow):
         self.editor.setBraceMatching(QsciScintilla.SloppyBraceMatch)
         self.editor.setCaretLineVisible(True)
         self.editor.setCaretLineBackgroundColor(QColor("#dee8ff"))
+        self.editor.setIndentationsUseTabs(False)
+        self.editor.setIndentationGuides(True)
+        self.editor.setTabIndents(True)
+        self.editor.setAutoIndent(True)
 
         lexer = QsciLexerPython()
         lexer.setDefaultFont(font)
@@ -245,9 +330,14 @@ class MainWindow(QMainWindow):
         self.terminal.setStyleSheet("background-color: #00092a; color: #c9dcff;")
         self.terminal.keyPressEvent = self.terminalKeyPressEvent
 
+        self.problemsWidget = QTextEdit()
+        self.problemsWidget.setReadOnly(True)
+        self.problemsWidget.setStyleSheet("background-color: #00093a; color: #ff8c8c;")
+        
         self.bottomTabWidget = QTabWidget()
         self.bottomTabWidget.addTab(self.console, "Output")
         self.bottomTabWidget.addTab(self.terminal, "Terminal")
+        self.bottomTabWidget.addTab(self.problemsWidget, "Problems")
         self.bottomTabWidget.setStyleSheet("""
             QTabWidget::pane {
                 border: 1px solid #1e1e3e;
@@ -513,6 +603,7 @@ class MainWindow(QMainWindow):
     def loadFile(self, fileName):
         self.console.clear()
         self.terminal.clear()
+        self.clearProblems()
         self.currentFile = fileName
         if fileName.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
             self.displayImage(fileName)
