@@ -85,7 +85,6 @@ class CustomFileSystemModel(QFileSystemModel):
             '.css': QIcon('img/css.png'),
             '.java': QIcon('img/java.png'),
             '.class': QIcon('img/classe.png'),
-            '.php': QIcon('img/php.png'),
             '.html': QIcon('img/html.png'),
             '.js': QIcon('img/javascript.png'),
             '.png': QIcon('img/image.png'),
@@ -536,10 +535,6 @@ class MainWindow(QMainWindow):
         rubyCompiler.setStatusTip('Download Ruby Compiler')
         rubyCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.ruby-lang.org/en/downloads/')))
 
-        phpCompiler = QAction(QIcon('img/php.png'),'PHP', self)
-        phpCompiler.setStatusTip('Download PHP Compiler')
-        phpCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://www.php.net/downloads')))
-
         jsCompiler = QAction(QIcon('img/javascript.png'),'JavaScript', self)
         jsCompiler.setStatusTip('Download JavaScript Compiler')
         jsCompiler.triggered.connect(lambda: QDesktopServices.openUrl(QUrl('https://nodejs.org/en/download/package-manager')))
@@ -548,7 +543,6 @@ class MainWindow(QMainWindow):
         compilerMenu.addAction(javaCompiler)
         compilerMenu.addAction(cppCompiler)
         compilerMenu.addAction(rubyCompiler)
-        compilerMenu.addAction(phpCompiler)
         compilerMenu.addAction(jsCompiler)
 
     def debugCode(self):
@@ -804,15 +798,6 @@ class MainWindow(QMainWindow):
 
             elif self.currentFile.endswith('.rb'):
                 command = f'ruby "{self.currentFile}"'
-                self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.SeparateChannels)
-                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
-                self.process.finished.connect(self.processFinished)
-                self.process.start(command)
-
-            elif self.currentFile.endswith('.php'):
-                command = f'php "{self.currentFile}"'
                 self.process = QProcess()
                 self.process.setProcessChannelMode(QProcess.SeparateChannels)
                 self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
