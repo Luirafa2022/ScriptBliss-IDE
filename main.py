@@ -1,6 +1,7 @@
 import sys
 import os
 import re
+import tempfile
 import subprocess
 import webbrowser
 import codecs
@@ -204,41 +205,50 @@ class MainWindow(QMainWindow):
             self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, code.splitlines()[line_num-1])))
 
     def checkJavaSyntax(self, code):
-        # Criar um processo para o compilador Java
-        process = subprocess.Popen(['javac', '-d', '/tmp', '-'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-        _, stderr = process.communicate(input=code)
+        # Extrair o nome da classe pública (se existir)
+        class_match = re.search(r'public\s+class\s+(\w+)', code)
+        class_name = class_match.group(1) if class_match else 'Main'
 
-        if stderr:
-            errors = stderr.splitlines()
-            for error in errors:
-                # Procurar por padrões de erro comuns
-                match = re.search(r'(\w+\.java):(\d+): error: (.*)', error)
-                if match:
-                    file_name, line_num, error_msg = match.groups()
-                    try:
-                        line_num = int(line_num)
-                        code_lines = code.splitlines()
-                        if 1 <= line_num <= len(code_lines):
-                            error_line = code_lines[line_num-1]
-                        else:
-                            error_line = ''
-                        self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, error_line)))
-                    except ValueError:
-                        # Se não conseguirmos converter o número da linha para inteiro, apenas mostramos o erro sem a linha específica
-                        self.showProblem(SyntaxError(error_msg, ('<string>', 1, 0, '')))
-                else:
-                    # Se não conseguirmos extrair as informações do erro, mostramos a mensagem completa
-                    self.showProblem(SyntaxError(error.strip(), ('<string>', 1, 0, '')))
+        # Criar um arquivo temporário com o nome correto
+        with tempfile.TemporaryDirectory() as temp_dir:
+            file_path = os.path.join(temp_dir, f"{class_name}.java")
+            with open(file_path, 'w') as temp_file:
+                temp_file.write(code)
 
-        # Tentar limpar qualquer arquivo .class gerado
-        class_name = re.search(r'class\s+(\w+)', code)
-        if class_name:
-            class_name = class_name.group(1)
-            try:
-                os.remove(f'/tmp/{class_name}.class')
-            except:
-                pass
-        
+            # Compilar o arquivo Java
+            process = subprocess.Popen(['javac', file_path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            _, stderr = process.communicate()
+
+            if stderr:
+                errors = stderr.splitlines()
+                for error in errors:
+                    # Ignorar avisos sobre o nome do arquivo
+                    if "should be declared in a file named" in error:
+                        continue
+                    
+                    # Procurar por padrões de erro
+                    match = re.search(r'(.+\.java):(\d+): error: (.*)', error)
+                    if match:
+                        _, reported_line_num, error_msg = match.groups()
+                        try:
+                            reported_line_num = int(reported_line_num)
+                            code_lines = code.splitlines()
+                            
+                            # Usar diretamente o número da linha reportada
+                            actual_line_num = reported_line_num
+                            
+                            if 1 <= actual_line_num <= len(code_lines):
+                                error_line = code_lines[actual_line_num-1]
+                            else:
+                                error_line = ''
+                            
+                            self.showProblem(SyntaxError(error_msg, ('<string>', actual_line_num, 0, error_line)))
+                        except ValueError:
+                            self.showProblem(SyntaxError(error_msg, ('<string>', 1, 0, '')))
+                    else:
+                        # Se não conseguirmos extrair as informações do erro, mostramos a mensagem completa
+                        self.showProblem(SyntaxError(error.strip(), ('<string>', 1, 0, '')))
+
     def checkRubySyntax(self, code):
         process = subprocess.Popen(['ruby', '-c'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
         _, stderr = process.communicate(input=code)
