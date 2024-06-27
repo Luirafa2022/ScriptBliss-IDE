@@ -171,6 +171,10 @@ class MainWindow(QMainWindow):
             self.checkCppSyntax(code)
         elif file_extension == '.js':
             self.checkJavaScriptSyntax(code)
+        elif file_extension == '.java':
+            self.checkJavaSyntax(code)
+        elif file_extension == '.rb':
+            self.checkRubySyntax(code)
 
     def checkPythonSyntax(self, code):
         try:
@@ -198,6 +202,115 @@ class MainWindow(QMainWindow):
             line_num = e.lineNumber
             error_msg = str(e)
             self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, code.splitlines()[line_num-1])))
+
+    def checkJavaSyntax(self, code):
+        # Criar um processo para o compilador Java
+        process = subprocess.Popen(['javac', '-d', '/tmp', '-'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+        _, stderr = process.communicate(input=code)
+
+        if stderr:
+            errors = stderr.splitlines()
+            for error in errors:
+                # Procurar por padrões de erro comuns
+                match = re.search(r'(\w+\.java):(\d+): error: (.*)', error)
+                if match:
+                    file_name, line_num, error_msg = match.groups()
+                    try:
+                        line_num = int(line_num)
+                        code_lines = code.splitlines()
+                        if 1 <= line_num <= len(code_lines):
+                            error_line = code_lines[line_num-1]
+                        else:
+                            error_line = ''
+                        self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, error_line)))
+                    except ValueError:
+                        # Se não conseguirmos converter o número da linha para inteiro, apenas mostramos o erro sem a linha específica
+                        self.showProblem(SyntaxError(error_msg, ('<string>', 1, 0, '')))
+                else:
+                    # Se não conseguirmos extrair as informações do erro, mostramos a mensagem completa
+                    self.showProblem(SyntaxError(error.strip(), ('<string>', 1, 0, '')))
+
+        # Tentar limpar qualquer arquivo .class gerado
+        class_name = re.search(r'class\s+(\w+)', code)
+        if class_name:
+            class_name = class_name.group(1)
+            try:
+                os.remove(f'/tmp/{class_name}.class')
+            except:
+                pass
+        
+    def checkRubySyntax(self, code):
+        process = subprocess.Popen(['ruby', '-c'], stdin=subprocess.PIPE, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
+        _, stderr = process.communicate(input=code)
+
+        if stderr:
+            for line in stderr.splitlines():
+                if ':' in line:
+                    parts = line.split(':')
+                    if len(parts) >= 3:
+                        try:
+                            line_num = int(parts[1])
+                            error_msg = ':'.join(parts[2:]).strip()
+                            code_lines = code.splitlines()
+                            if 1 <= line_num <= len(code_lines):
+                                error_line = code_lines[line_num-1]
+                            else:
+                                error_line = ''
+                            self.showProblem(SyntaxError(error_msg, ('<string>', line_num, 0, error_line)))
+                        except ValueError:
+                            # Se não conseguirmos converter o número da linha para inteiro, apenas mostramos o erro sem a linha específica
+                            self.showProblem(SyntaxError(line.strip(), ('<string>', 1, 0, '')))
+                    else:
+                        # Se não conseguirmos separar a linha em partes suficientes, mostramos o erro completo
+                        self.showProblem(SyntaxError(line.strip(), ('<string>', 1, 0, '')))
+
+    def setupStatusBar(self):
+        self.statusBar = self.statusBar()
+        self.statusBar.setStyleSheet("background-color: #00031c; color: #e0e0ff;")
+
+        self.lineColLabel = QLabel("Line 1, Col 1")
+        self.encodingLabel = QLabel("UTF-8")
+        self.languageLabel = QLabel("Plain Text")
+
+        self.statusBar.addPermanentWidget(self.lineColLabel)
+        self.statusBar.addPermanentWidget(self.encodingLabel)
+        self.statusBar.addPermanentWidget(self.languageLabel)
+
+    def updateLineColInfo(self):
+        line, col = self.editor.getCursorPosition()
+        self.lineColLabel.setText(f"Line {line + 1}, Col {col + 1}")
+
+    def updateFileInfo(self):
+        if self.currentFile:
+            _, ext = os.path.splitext(self.currentFile)
+            self.encodingLabel.setText(self.detectEncoding(self.currentFile))
+            self.languageLabel.setText(self.getLanguage(ext))
+        else:
+            self.encodingLabel.setText("UTF-8")
+            self.languageLabel.setText("Plain Text")
+
+    def detectEncoding(self, file_path):
+        encodings = ['utf-8', 'iso-8859-1', 'windows-1252', 'ascii']
+        for enc in encodings:
+            try:
+                with codecs.open(file_path, 'r', encoding=enc) as f:
+                    f.read()
+                return enc.upper()
+            except UnicodeDecodeError:
+                continue
+        return "Unknown"
+
+    def getLanguage(self, ext):
+        languages = {
+            '.py': 'Python',
+            '.java': 'Java',
+            '.html': 'HTML',
+            '.js': 'JavaScript',
+            '.css': 'CSS',
+            '.cpp': 'C++',
+            '.rb': 'Ruby'
+        }
+        return languages.get(ext, 'Plain Text')
 
     def setupDebugToolbar(self):
         nextAction = QAction(QIcon('img/next.png'), 'Next', self)
@@ -271,6 +384,7 @@ class MainWindow(QMainWindow):
         self.editor.setTabWidth(4) 
         # Conecta o evento de tecla pressionada do editor
         self.editor.keyPressEvent = self.editorKeyPressEvent
+        self.editor.cursorPositionChanged.connect(self.updateLineColInfo)
 
         font = QFont()
         font.setFamily('Consolas')  # This font is good for a wide range of UTF-8 characters
@@ -374,6 +488,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(splitter2)
 
         self.setupMenuBar()
+        self.setupStatusBar()
 
     def setupAutocomplete(self):
         self.editor.setAutoCompletionSource(QsciScintilla.AcsAll)
@@ -570,6 +685,7 @@ class MainWindow(QMainWindow):
             self.editor.setText("")
             self.setWindowTitle(f"ScriptBliss - {self.currentFile}")
             self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
+            self.updateFileInfo()
 
     def openFileDialog(self):
         options = QFileDialog.Options()
@@ -578,6 +694,7 @@ class MainWindow(QMainWindow):
         if fileName:
             self.loadFile(fileName)
             self.updateTreeViewForFile(fileName)
+            self.updateFileInfo()
 
     def openFolderDialog(self):
         folder = QFileDialog.getExistingDirectory(self, "Open Folder", QDir.currentPath())
@@ -593,6 +710,7 @@ class MainWindow(QMainWindow):
             # Limpar console e terminal
             self.console.clear()
             self.terminal.clear()
+            self.updateFileInfo()
 
     def loadFile(self, fileName):
         self.console.clear()
@@ -637,6 +755,8 @@ class MainWindow(QMainWindow):
             if lexer:
                 lexer.setDefaultFont(QFont("Consolas", 10))
                 self.editor.setLexer(lexer)
+
+            self.updateFileInfo()
 
             # Restore the original self.editor if needed
             if self.splitter1.widget(1) != self.editor:
