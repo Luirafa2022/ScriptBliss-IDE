@@ -113,6 +113,7 @@ class MainWindow(QMainWindow):
         self.currentFile = ''
         self.projectPath = QDir.currentPath()
         self.process = None
+        self.welcomeWidget = None
         self.initUI()
         self.debugToolbar = QToolBar("Debug Toolbar")
         self.addToolBar(self.debugToolbar)
@@ -388,6 +389,13 @@ class MainWindow(QMainWindow):
         self.imageViewer = QLabel()
         self.imageViewer.setAlignment(Qt.AlignCenter)
         self.imageViewer.setStyleSheet("background-color: #1e1e3e;")
+
+        # Crie o widget de boas-vindas
+        self.welcomeWidget = QLabel()
+        self.welcomeWidget.setPixmap(QPixmap('img/logo_inicio.png'))
+        self.welcomeWidget.setAlignment(Qt.AlignCenter)
+        self.welcomeWidget.setStyleSheet("background-color: #1e1e3e;")
+
         self.editor.setUtf8(True)  # Ensure the editor is in UTF-8 mode
         self.editor.setCaretForegroundColor(QColor("#00091a"))
         # Define a largura da tabulação para 4 espaços
@@ -485,7 +493,7 @@ class MainWindow(QMainWindow):
 
         self.splitter1 = QSplitter(Qt.Horizontal)
         self.splitter1.addWidget(self.treeView)
-        self.splitter1.addWidget(self.editor)
+        self.splitter1.addWidget(self.welcomeWidget)
         self.splitter1.setSizes([200, 1000])
         self.splitter1.setHandleWidth(0)
 
@@ -712,6 +720,7 @@ class MainWindow(QMainWindow):
             self.projectPath = folder
             self.fileSystemModel.setRootPath(folder)
             self.treeView.setRootIndex(self.fileSystemModel.index(folder))
+            
             # Limpar o editor
             self.editor.clear()
             self.currentFile = ''
@@ -720,6 +729,10 @@ class MainWindow(QMainWindow):
             # Limpar console e terminal
             self.console.clear()
             self.terminal.clear()
+            
+            # Restaurar o widget de boas-vindas
+            self.splitter1.replaceWidget(1, self.welcomeWidget)
+            
             self.updateFileInfo()
 
     def loadFile(self, fileName):
@@ -768,9 +781,10 @@ class MainWindow(QMainWindow):
 
             self.updateFileInfo()
 
-            # Restore the original self.editor if needed
+            # Substitua o widget de boas-vindas pelo editor
             if self.splitter1.widget(1) != self.editor:
                 self.splitter1.replaceWidget(1, self.editor)
+
         self.updateTreeViewForFile(fileName)
 
     def updateTreeViewForFile(self, fileName):
@@ -1130,14 +1144,18 @@ class MainWindow(QMainWindow):
                 self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
             except OSError as e:
                 self.showErrorMessage("Error", f"Failed to delete: {str(e)}")
+
         # Limpar o editor
-            self.editor.clear()
-            self.currentFile = ''
-            self.setWindowTitle("ScriptBliss")
-            
-            # Limpar console e terminal
-            self.console.clear()
-            self.terminal.clear()
+        self.editor.clear()
+        self.currentFile = ''
+        self.setWindowTitle("ScriptBliss")
+        
+        # Limpar console e terminal
+        self.console.clear()
+        self.terminal.clear()
+
+        # Restaurar o widget de boas-vindas
+        self.splitter1.replaceWidget(1, self.welcomeWidget)
 
     def renameFile(self, index=None):
         if index is None:
