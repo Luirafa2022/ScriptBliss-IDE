@@ -8,7 +8,7 @@ import codecs
 import shutil
 from PyQt5.QtWidgets import (QApplication, QScrollArea, QMainWindow, QTreeView, QAbstractItemView, QFileSystemModel, QSplitter, QTextEdit,
                              QTabWidget, QMenu, QAction, QInputDialog, QMessageBox, QLabel, QFileDialog, QVBoxLayout, QWidget)
-from PyQt5.QtGui import (QIcon, QColor, QPalette, QFont, QFontMetrics, QPixmap, QDesktopServices, QDrag, QCursor)
+from PyQt5.QtGui import (QIcon, QColor, QDesktopServices, QPalette, QFont, QFontMetrics, QPixmap, QDesktopServices, QDrag, QCursor)
 from PyQt5.QtCore import (Qt, QDir, QProcess, QTimer, QUrl, QPoint, QMimeData, QFileInfo, pyqtSignal)
 from PyQt5.Qsci import (QsciScintilla, QsciLexerPython, QsciLexerJava, QsciLexerHTML, QsciLexerJavaScript,
                         QsciLexerCSS, QsciLexerCPP, QsciLexerRuby)
@@ -885,80 +885,92 @@ class MainWindow(QMainWindow):
             self.terminal.clear()
 
             if self.currentFile.endswith('.py'):
-                # Detecta a codificação do arquivo
-                encodings = ['utf-8', 'iso-8859-1', 'windows-1252', 'ascii']
-                detected_encoding = None
-                for encoding in encodings:
-                    try:
-                        with codecs.open(self.currentFile, 'r', encoding=encoding) as f:
-                            f.read()
-                        detected_encoding = encoding
-                        break
-                    except UnicodeDecodeError:
-                        continue
-                
-                if detected_encoding:
-                    command = f'python -X utf8=0 -c "import codecs; exec(codecs.open(\'{self.currentFile}\', encoding=\'{detected_encoding}\').read())"'
+                if self.checkCompiler('python --version'):
+                    # Detecta a codificação do arquivo
+                    encodings = ['utf-8', 'iso-8859-1', 'windows-1252', 'ascii']
+                    detected_encoding = None
+                    for encoding in encodings:
+                        try:
+                            with codecs.open(self.currentFile, 'r', encoding=encoding) as f:
+                                f.read()
+                            detected_encoding = encoding
+                            break
+                        except UnicodeDecodeError:
+                            continue
+                    
+                    if detected_encoding:
+                        command = f'python -X utf8=0 -c "import codecs; exec(codecs.open(\'{self.currentFile}\', encoding=\'{detected_encoding}\').read())"'
+                    else:
+                        command = f'python "{self.currentFile}"'
+                    
+                    self.process = QProcess(self)
+                    self.process.setProcessChannelMode(QProcess.SeparateChannels)
+                    self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                    self.process.readyReadStandardError.connect(self.updateConsoleError)
+                    self.process.finished.connect(self.processFinished)
+                    self.process.start(command)
                 else:
-                    command = f'python "{self.currentFile}"'
-                
-                self.process = QProcess(self)
-                self.process.setProcessChannelMode(QProcess.SeparateChannels)
-                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleError)
-                self.process.finished.connect(self.processFinished)
-                self.process.start(command)
+                    self.showCompilerMissingMessage('Python')
 
             elif self.currentFile.endswith('.java'):
-                compile_command = f'javac "{self.currentFile}"'
-                self.process = QProcess()
-                self.process.start(compile_command)
-                self.process.waitForFinished()
-                compile_output = self.process.readAllStandardOutput().data().decode()
-                compile_error = self.process.readAllStandardError().data().decode()
+                if self.checkCompiler('javac -version'):
+                    compile_command = f'javac "{self.currentFile}"'
+                    self.process = QProcess()
+                    self.process.start(compile_command)
+                    self.process.waitForFinished()
+                    compile_output = self.process.readAllStandardOutput().data().decode()
+                    compile_error = self.process.readAllStandardError().data().decode()
 
-                if compile_error:
-                    self.console.append(f"<span style='color:#ff8c8c;'>{compile_error}</span>")
-                    return
+                    if compile_error:
+                        self.console.append(f"<span style='color:#ff8c8c;'>{compile_error}</span>")
+                        return
 
-                class_name = os.path.splitext(os.path.basename(self.currentFile))[0]
-                run_command = f'java -cp "{os.path.dirname(self.currentFile)}" {class_name}'
-                self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.SeparateChannels)
-                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
-                self.process.finished.connect(self.processFinished)
-                self.process.start(run_command)
+                    class_name = os.path.splitext(os.path.basename(self.currentFile))[0]
+                    run_command = f'java -cp "{os.path.dirname(self.currentFile)}" {class_name}'
+                    self.process = QProcess()
+                    self.process.setProcessChannelMode(QProcess.SeparateChannels)
+                    self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                    self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                    self.process.finished.connect(self.processFinished)
+                    self.process.start(run_command)
+                else:
+                    self.showCompilerMissingMessage('Java')
 
             elif self.currentFile.endswith('.cpp'):
-                executable = self.currentFile[:-4]
-                compile_command = f'g++ "{self.currentFile}" -o "{executable}"'
-                run_command = f'"{executable}"'
-                self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.SeparateChannels)
-                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                if self.checkCompiler('g++ --version'):
+                    executable = self.currentFile[:-4]
+                    compile_command = f'g++ "{self.currentFile}" -o "{executable}"'
+                    run_command = f'"{executable}"'
+                    self.process = QProcess()
+                    self.process.setProcessChannelMode(QProcess.SeparateChannels)
+                    self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                    self.process.readyReadStandardError.connect(self.updateConsoleOutput)
 
-                self.process.start(compile_command)
-                self.process.waitForFinished()
-                compile_output = self.process.readAllStandardOutput().data().decode()
-                compile_error = self.process.readAllStandardError().data().decode()
+                    self.process.start(compile_command)
+                    self.process.waitForFinished()
+                    compile_output = self.process.readAllStandardOutput().data().decode()
+                    compile_error = self.process.readAllStandardError().data().decode()
 
-                if compile_error:
-                    self.console.append(f"<span style='color: #ff8c8c;'>{compile_error}</span>")
-                    return
+                    if compile_error:
+                        self.console.append(f"<span style='color: #ff8c8c;'>{compile_error}</span>")
+                        return
 
-                self.process.start(run_command)
-                self.process.finished.connect(self.processFinished)
+                    self.process.start(run_command)
+                    self.process.finished.connect(self.processFinished)
+                else:
+                    self.showCompilerMissingMessage('C++')
 
             elif self.currentFile.endswith('.rb'):
-                command = f'ruby "{self.currentFile}"'
-                self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.SeparateChannels)
-                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
-                self.process.finished.connect(self.processFinished)
-                self.process.start(command)
+                if self.checkCompiler('ruby --version'):
+                    command = f'ruby "{self.currentFile}"'
+                    self.process = QProcess()
+                    self.process.setProcessChannelMode(QProcess.SeparateChannels)
+                    self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                    self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                    self.process.finished.connect(self.processFinished)
+                    self.process.start(command)
+                else:
+                    self.showCompilerMissingMessage('Ruby')
 
             elif self.currentFile.endswith('.html'):
                 html_file_path = f'file://{os.path.abspath(self.currentFile)}'
@@ -966,15 +978,17 @@ class MainWindow(QMainWindow):
                 self.console.append(f"Opened {self.currentFile} in the default web browser.")
 
             elif self.currentFile.endswith('.js'):
-                # Ensure Node.js is installed and the path is correct
-                command = f'node "{self.currentFile}"'
-                self.process = QProcess()
-                self.process.setProcessChannelMode(QProcess.SeparateChannels)
-                self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
-                self.process.readyReadStandardError.connect(self.updateConsoleOutput)
-                self.process.finished.connect(self.processFinished)
-                self.process.start(command)
-   
+                if self.checkCompiler('node --version'):
+                    command = f'node "{self.currentFile}"'
+                    self.process = QProcess()
+                    self.process.setProcessChannelMode(QProcess.SeparateChannels)
+                    self.process.readyReadStandardOutput.connect(self.updateConsoleOutput)
+                    self.process.readyReadStandardError.connect(self.updateConsoleOutput)
+                    self.process.finished.connect(self.processFinished)
+                    self.process.start(command)
+                else:
+                    self.showCompilerMissingMessage('Node.js')
+
             elif self.currentFile.endswith('.css'):
                 self.console.append("Cannot execute CSS files directly.")
 
@@ -982,8 +996,36 @@ class MainWindow(QMainWindow):
                 self.console.append("Unsupported file format for direct execution.")
                 return
             
-        self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
-        self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
+            self.debugToolbar.setVisible(False)  # Ocultar a barra de ferramentas de depuração
+            self.bottomTabWidget.setCurrentIndex(0)  # Switch to Output tab
+
+    def checkCompiler(self, command):
+        try:
+            subprocess.run(command, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            return True
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            return False
+
+    def showCompilerMissingMessage(self, compiler):
+        message = f"{compiler} compiler/interpreter not found. Would you like to download it?"
+        reply = QMessageBox.question(self, 'Compiler Missing', message, 
+                                    QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            self.openCompilerDownloadPage(compiler)
+
+    def openCompilerDownloadPage(self, compiler):
+        urls = {
+            'Python': 'https://www.python.org/downloads/',
+            'Java': 'https://www.oracle.com/java/technologies/javase-jdk11-downloads.html',
+            'C++': 'https://www.mingw-w64.org/downloads/',
+            'Ruby': 'https://www.ruby-lang.org/en/downloads/',
+            'Node.js': 'https://nodejs.org/en/download/'
+        }
+        url = urls.get(compiler)
+        if url:
+            QDesktopServices.openUrl(QUrl(url))
+        else:
+            QMessageBox.warning(self, 'Download Error', f'Download link for {compiler} not found.')
 
     def updateConsoleOutput(self):
         if not self.process:
