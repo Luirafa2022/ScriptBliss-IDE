@@ -760,18 +760,28 @@ class MainWindow(QMainWindow):
             # Set the appropriate lexer based on the file extension
             if fileName.endswith('.py'):
                 lexer = QsciLexerPython()
+                if not self.checkCompiler('python --version'):
+                    self.showCompilerMissingMessage('Python')
             elif fileName.endswith('.java'):
                 lexer = QsciLexerJava()
+                if not self.checkCompiler('javac -version'):
+                    self.showCompilerMissingMessage('Java')
             elif fileName.endswith('.html'):
                 lexer = QsciLexerHTML()
             elif fileName.endswith('.js'):
                 lexer = QsciLexerJavaScript()
+                if not self.checkCompiler('node --version'):
+                    self.showCompilerMissingMessage('Node.js')
             elif fileName.endswith('.css'):
                 lexer = QsciLexerCSS()
             elif fileName.endswith('.cpp'):
                 lexer = QsciLexerCPP()
+                if not self.checkCompiler('g++ --version'):
+                    self.showCompilerMissingMessage('C++')
             elif fileName.endswith('.rb'):
                 lexer = QsciLexerRuby()
+                if not self.checkCompiler('ruby --version'):
+                    self.showCompilerMissingMessage('Ruby')
             else:
                 lexer = None
 
