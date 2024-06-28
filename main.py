@@ -6,7 +6,7 @@ import subprocess
 import webbrowser
 import codecs
 import shutil
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTreeView, QAbstractItemView, QFileSystemModel, QSplitter, QTextEdit,
+from PyQt5.QtWidgets import (QApplication, QScrollArea, QMainWindow, QTreeView, QAbstractItemView, QFileSystemModel, QSplitter, QTextEdit,
                              QTabWidget, QMenu, QAction, QInputDialog, QMessageBox, QLabel, QFileDialog, QVBoxLayout, QWidget)
 from PyQt5.QtGui import (QIcon, QColor, QPalette, QFont, QFontMetrics, QPixmap, QDesktopServices, QDrag, QCursor)
 from PyQt5.QtCore import (Qt, QDir, QProcess, QTimer, QUrl, QPoint, QMimeData, QFileInfo, pyqtSignal)
@@ -787,41 +787,52 @@ class MainWindow(QMainWindow):
         self.treeView.setCurrentIndex(index)
         self.treeView.expand(index.parent())
 
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        if hasattr(self, 'imageLabel') and hasattr(self, 'scrollArea'):
+            self.updateImageSize()
+
+    def updateImageSize(self):
+        if self.currentFile and self.currentFile.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.gif')):
+            available_size = self.splitter1.widget(1).size()
+            pixmap = QPixmap(self.currentFile)
+            scaled_pixmap = pixmap.scaled(available_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            self.imageLabel.setPixmap(scaled_pixmap)
+
     def displayImage(self, fileName):
-        pixmap = QPixmap(fileName)
-        self.imageViewer.setPixmap(pixmap)
         try:
             pixmap = QPixmap(fileName)
+            
+            # Get the size of the splitter widget where the image will be displayed
+            available_size = self.splitter1.widget(1).size()
+            
+            # Scale the pixmap to fit within the available size while maintaining aspect ratio
+            scaled_pixmap = pixmap.scaled(available_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            
+            # Create a new QLabel to hold the scaled image
             imageLabel = QLabel()
-            imageLabel.setPixmap(pixmap)
+            imageLabel.setPixmap(scaled_pixmap)
             imageLabel.setAlignment(Qt.AlignCenter)
             imageLabel.setStyleSheet("background-color: #1e1e3e;")
-
-            # Create a new QWidget to hold the imageLabel
-            imageWidget = QWidget()
-            layout = QVBoxLayout(imageWidget)
-            layout.addWidget(imageLabel)
-            layout.setContentsMargins(0, 0, 0, 0)
-
-            # Create a new QsciScintilla object to display the image
-            imageEditor = QsciScintilla()
-            imageEditor.setReadOnly(True)
-            imageEditor.setText("")
-            imageEditor.setMarginWidth(0, 0)
-            imageEditor.setMarginWidth(1, 0)
-            imageEditor.setMarginWidth(2, 0)
-            imageEditor.setMinimumSize(pixmap.width(), pixmap.height())
-            imageEditor.viewport().setBackgroundRole(QPalette.Dark)
-            imageEditor.viewport().setAutoFillBackground(True)
-
-            # Replace self.editor with the imageEditor
-            self.splitter1.replaceWidget(1, self.imageViewer)
-            self.imageEditor = imageEditor
-            self.imageWidget = imageWidget
-            self.imageEditor.setViewport(self.imageWidget)
-
+            
+            # Create a scroll area to allow scrolling if the image is still larger than the available space
+            scrollArea = QScrollArea()
+            scrollArea.setWidget(imageLabel)
+            scrollArea.setWidgetResizable(True)
+            scrollArea.setStyleSheet("background-color: #1e1e3e;")
+            
+            # Replace the current widget in the splitter with the scroll area
+            self.splitter1.replaceWidget(1, scrollArea)
+            
+            # Store references to the new widgets
+            self.imageLabel = imageLabel
+            self.scrollArea = scrollArea
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to display image: {str(e)}")
+
+        # Update the window title
+        self.setWindowTitle(f"ScriptBliss - {fileName}")
 
     def saveFileDialog(self):
         if self.currentFile:
