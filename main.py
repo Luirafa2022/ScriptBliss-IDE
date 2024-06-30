@@ -6,6 +6,7 @@ import subprocess
 import webbrowser
 import codecs
 import shutil
+from git import Repo, GitCommandError
 from PyQt5.QtWidgets import (QApplication, QScrollArea, QMainWindow, QTreeView, QAbstractItemView, QFileSystemModel, QSplitter, QTextEdit,
                              QTabWidget, QMenu, QAction, QInputDialog, QMessageBox, QLabel, QFileDialog, QVBoxLayout, QWidget)
 from PyQt5.QtGui import (QIcon, QColor, QDesktopServices, QPalette, QFont, QFontMetrics, QPixmap, QDesktopServices, QDrag, QCursor)
@@ -13,6 +14,41 @@ from PyQt5.QtCore import (Qt, QDir, QProcess, QTimer, QUrl, QPoint, QMimeData, Q
 from PyQt5.Qsci import (QsciScintilla, QsciLexerPython, QsciLexerJava, QsciLexerHTML, QsciLexerJavaScript,
                         QsciLexerCSS, QsciLexerCPP, QsciLexerRuby)
 from PyQt5.QtWidgets import QToolBar, QAction
+
+class GitManager:
+    def __init__(self, repo_path):
+        self.repo = Repo(repo_path)
+
+    def clone_repository(self, url, target_path):
+        try:
+            Repo.clone_from(url, target_path)
+            return True, "Repository cloned successfully."
+        except GitCommandError as e:
+            return False, f"Failed to clone repository: {str(e)}"
+
+    def commit(self, message):
+        try:
+            self.repo.git.add(A=True)
+            self.repo.index.commit(message)
+            return True, "Changes committed successfully."
+        except GitCommandError as e:
+            return False, f"Failed to commit changes: {str(e)}"
+
+    def push(self):
+        try:
+            origin = self.repo.remote(name='origin')
+            origin.push()
+            return True, "Changes pushed successfully."
+        except GitCommandError as e:
+            return False, f"Failed to push changes: {str(e)}"
+
+    def pull(self):
+        try:
+            origin = self.repo.remote(name='origin')
+            origin.pull()
+            return True, "Changes pulled successfully."
+        except GitCommandError as e:
+            return False, f"Failed to pull changes: {str(e)}"
 
 class DraggableTreeView(QTreeView):
     dropped = pyqtSignal(list)
@@ -127,6 +163,7 @@ class MainWindow(QMainWindow):
         self.editor.textChanged.connect(self.startSyntaxCheckTimer)
         self.editor.setMarkerBackgroundColor(QColor("#ff0000"), 8)
         self.editor.markerDefine(QsciScintilla.RightTriangle, 8)
+        self.git_manager = None
 
         # Configure o indicador para sublinhar erros
         self.ERROR_INDICATOR = 8
@@ -724,6 +761,7 @@ class MainWindow(QMainWindow):
             self.projectPath = folder
             self.fileSystemModel.setRootPath(folder)
             self.treeView.setRootIndex(self.fileSystemModel.index(folder))
+            self.git_manager = GitManager(folder)
             
             # Limpar o editor
             self.editor.clear()
@@ -1101,10 +1139,12 @@ class MainWindow(QMainWindow):
         if ok and repo_url:
             target_path = QFileDialog.getExistingDirectory(self, "Select Directory to Clone Into")
             if target_path:
-                process = QProcess()
-                process.setWorkingDirectory(target_path)
-                process.start('git', ['clone', repo_url])
-                process.finished.connect(lambda: self.updateTreeView(target_path))
+                success, message = self.git_manager.clone_repository(repo_url, target_path)
+                if success:
+                    self.updateTreeView(target_path)
+                    self.console.append(f"<span style='color: #c9dcff;'>{message}</span>")
+                else:
+                    self.console.append(f"<span style='color: #ff8c8c;'>{message}</span>")
 
     def updateTreeView(self, path):
         self.projectPath = path
@@ -1114,28 +1154,25 @@ class MainWindow(QMainWindow):
     def gitCommit(self):
         message, ok = QInputDialog.getText(self, 'Git Commit', 'Enter commit message:')
         if ok and message:
-            process = QProcess()
-            process.start(f'git commit -am "{message}"')
-            process.waitForFinished()
-            output = process.readAllStandardOutput().data().decode()
-            error = process.readAllStandardError().data().decode()
-            self.console.append(output + '\n' + error)
+            success, result = self.git_manager.commit(message)
+            if success:
+                self.console.append(f"<span style='color: #c9dcff;'>{result}</span>")
+            else:
+                self.console.append(f"<span style='color: #ff8c8c;'>{result}</span>")
 
     def gitPush(self):
-        process = QProcess()
-        process.start('git push')
-        process.waitForFinished()
-        output = process.readAllStandardOutput().data().decode()
-        error = process.readAllStandardError().data().decode()
-        self.console.append(output + '\n' + error)
+        success, result = self.git_manager.push()
+        if success:
+            self.console.append(f"<span style='color: #c9dcff;'>{result}</span>")
+        else:
+            self.console.append(f"<span style='color: #ff8c8c;'>{result}</span>")
 
     def gitPull(self):
-        process = QProcess()
-        process.start('git pull')
-        process.waitForFinished()
-        output = process.readAllStandardOutput().data().decode()
-        error = process.readAllStandardError().data().decode()
-        self.console.append(output + '\n' + error)
+        success, result = self.git_manager.pull()
+        if success:
+            self.console.append(f"<span style='color: #c9dcff;'>{result}</span>")
+        else:
+            self.console.append(f"<span style='color: #ff8c8c;'>{result}</span>")
 
     def onFileClicked(self, index):
         if not self.fileSystemModel.isDir(index):
