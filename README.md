@@ -5,5 +5,5 @@ Essa é uma IDE chamada ScriptBliss que tem como objetivo facilitar sua programa
 
 Para utilizar essa IDE Open-Source
 ```
-pip install pyqt5 qscintilla esprima GitPython
+pip install pyqt5 qscintilla esprima
 ```
