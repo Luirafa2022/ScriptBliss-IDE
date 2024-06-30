@@ -438,7 +438,11 @@ class MainWindow(QMainWindow):
         self.treeView.setRootIndex(self.fileSystemModel.index(self.projectPath))
         self.treeView.clicked.connect(self.onFileClicked)
         self.treeView.setHeaderHidden(True)
-        self.treeView.setIndentation(10)
+        self.treeView.setIndentation(10)  # Aumenta a indentação
+        self.treeView.setAnimated(True)  # Adiciona animações ao expandir/colapsar
+        self.treeView.setSortingEnabled(True)  # Permite ordenação
+        self.treeView.sortByColumn(0, Qt.AscendingOrder)  # Ordena por nome em ordem ascendente
+        self.treeView.setExpandsOnDoubleClick(True)  # Expande/colapsa com duplo clique
         self.treeView.setContextMenuPolicy(Qt.CustomContextMenu)
         self.treeView.customContextMenuRequested.connect(self.showContextMenu)
         self.treeView.dropped.connect(self.onDropped)
